@@ -29,6 +29,9 @@ A	docs/x2/README.md	AgiBot X2 Ultra on GEAR-SONIC — runbook index — This dir
 A	docs/x2/TRAINING_NOTES.md	Public run history: lineages and GPU-hours of the shipped sets, the reward terms that differ from the SONIC paper and the A/B that would settle them, the traps that cost GPU-hours.
 A	docs/x2/gamepad_cheatsheet.md	X2 gamepad cheat sheet (demo pad, untethered) — Bindings come from two places and the sheet reflects their combination
 A	docs/x2/gamepad_control_map.html	X2 pad — control map
+A	docs/x2/handover/README.md	中文交接总览：两条遥操链路的选择、现状快照与交接待办。
+A	docs/x2/handover/sonic_wbc_teleop_handover_CN.md	SONIC 全身遥操真机中文上手指南：L1~L5、模型版本、点火/全身跟随/停机与排查。
+A	docs/x2/handover/x2_upper_body_teleop_handover_CN.md	上肢遥操 v1~v4 中文上手指南：版本对比、v4 操作、v3/v2 回退与排查。
 A	gear_sonic/config/callbacks/finetune_rate_schedule.yaml	Anneal fine_tune_dataset.finetune_sample_rate without restarting the run.
 A	gear_sonic/config/exp/manager/universal_token/all_modes/sonic_x2_frozen_core_t2.yaml	@package _global_ FROZEN-CORE T2 — dynamics adaptation of the FROZEN GEAR-SONIC G1 core on X2.
 A	gear_sonic/config/exp/manager/universal_token/all_modes/sonic_x2_leg5_pico_combined_ft.yaml	@package _global_ LEG 5 -- the INCUMBENT X2-native lineage (3 encoders, trained from scratch on X2, no frozen G1 core) resumed with the combined Pico fine-tune set.

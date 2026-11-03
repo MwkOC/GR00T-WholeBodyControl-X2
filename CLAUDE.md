@@ -3,6 +3,12 @@
 > 本文件是给 Claude Code 的项目上下文。**项目自带的文档非常完整**（`docs/x2/` 下有 13 个 runbook），
 > 本文件只做导航、补充本地部署状态、以及记录官方文档没写全的坑。
 > **遇到细节问题先去查 `docs/x2/`，不要凭本文件臆断。**
+>
+> **交接文档（2026-11-03）**：
+> - 总览：[`docs/x2/handover/README.md`](docs/x2/handover/README.md)
+> - SONIC 全身遥操真机：[`docs/x2/handover/sonic_wbc_teleop_handover_CN.md`](docs/x2/handover/sonic_wbc_teleop_handover_CN.md)
+> - 上肢遥操（v1~v4，另一条链路）：
+>   [`docs/x2/handover/x2_upper_body_teleop_handover_CN.md`](docs/x2/handover/x2_upper_body_teleop_handover_CN.md)
 
 ---
 
@@ -39,18 +45,23 @@ Pico 全身遥操作          → SMPL encoder       → 全身跟随
 
 ---
 
-## 二、本机部署状态（2026-09-24）
+## 二、本机部署状态（更新于 2026-11-03）
 
 | 项 | 值 |
 |---|---|
 | 部署路径 | `/home/nvidia/Documents/czq/GR00T-WholeBodyControl-X2/` |
-| Python 环境 | **项目内 `.venv`**（Python 3.10.21，由 `czq/xr-env` 的 python 创建） |
+| Python 环境 | **项目内 `.venv`**（Python 3.10.21，由 `czq/xr-env` 的 python 创建）；Pico sender 另有 `.venv_teleop` |
 | git-lfs | ✅ 3.8.0（装在 `/home/nvidia/miniconda3/bin/git-lfs`，**未动系统**） |
-| Docker | ✅ 28.4.0（⚠️ **当前用户无守护进程权限**，见下方「坑 5」） |
+| Docker | ✅ 28.4.0（当前用户可直接跑；旧记录“无权限”已过时） |
 | ROS 2 | ✅ `/opt/ros/jazzy` + `colcon` 已装 |
 | 磁盘 | 936 GB 总量，约 620 GB 可用 |
 | 动作库 | ✅ 已构建（`x2_demo_bank.pkl` 51 片段 450s + `x2_pad_banks.pkl` + planner primitives + 51 个 x2m2 片段） |
-| 验证状态 | ✅ `check_environment.py`(deploy) 通过、14/14 模块导入、`play_x2_motion_mujoco.py` 回放成功、pytest 8/8 通过（2026-09-24） |
+| 验证状态 | ✅ L1/L2/L3 全部通过；**L4 真机全身遥操 2026-10-30 验收通过**（详见交接指南与 `x2_sonic_runbook.html`） |
+
+**当前状态（2026-11-03 交接）**：`main = d116ec8`（2026-10-30 21:12），比 `origin/main`
+领先 50 个提交；已包含 MC handoff 与 ritual 预检修复。PC2 装机前缀
+`/home/agi/gear-sonic`（软链到 `~/Workspaces/czq/gear-sonic`）。本机 `eth9` 直连网卡
+当前未枚举，上机前先恢复 `10.0.1.10/24` → PC2 `10.0.1.41`。
 
 ### ⚠️ `.venv` 的一个耦合
 
@@ -197,16 +208,20 @@ CPU 源是有 aarch64 轮子的（2.10~2.12 都有 `cp310-manylinux_2_28_aarch64
 - **每次结束都要 `./gear_sonic/scripts/simstack_local.sh --stop`**（即使 Ctrl-C 之后），
   否则残留容器会让下次启动行为诡异。检查：`docker ps` 里不该有 `x2sim`。
 
-### 坑 5：本机 docker 权限（**当前未解决**）
+### 坑 5：本机 docker 权限（**已解决，2026-09-25~28**）
 
-Docker 已装（28.4.0），但 `docker info` 报当前用户无权限。要跑仿真栈需要二选一：
+Docker 28.4.0 已装，且 `nvidia` 用户已加入 `docker` 组（重新登录后生效），
+仿真栈可直接跑，**不需要 sudo**。旧记录“当前用户无权限”已过时，别再折腾用户组。
+
+换新机器时才需要：
 
 ```bash
-sudo usermod -aG docker $USER     # 然后重新登录（推荐）
+sudo usermod -aG docker $USER     # 然后重新登录
 # 或每次用 sudo
 ```
 
-> 这属于系统级改动，**本机部署时刻意没做**，需要时再执行。
+> 这属于系统级改动；本机已经做过。若 `docker info` 仍报权限，先确认当前 shell
+> 的组是否已刷新（`id | grep docker`）或重新登录。
 
 ### 坑 6：`ALLOW_MISMATCH=1` 的作用域
 

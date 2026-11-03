@@ -11,6 +11,11 @@ default of every launcher and of the robot template, and any other policy is
 **your own exported model** ([`../../MODELS.md`](../../MODELS.md)). No
 captured motion data and no robot-specific address ships with the repository.
 
+> **中文交接指南（本机实验配置，含实际地址与逐步操作）**：
+> [总览](handover/README.md) ·
+> [SONIC 全身遥操](handover/sonic_wbc_teleop_handover_CN.md) ·
+> [上肢遥操 v1~v4](handover/x2_upper_body_teleop_handover_CN.md)
+
 | # | Runbook | What it proves |
 |---|---|---|
 | F01 | [Gamepad control](F01_gamepad.md) | sticks drive the kplanner in sim and on the robot; clip banks; e-stop |

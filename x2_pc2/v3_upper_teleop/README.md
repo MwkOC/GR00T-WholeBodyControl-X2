@@ -1,5 +1,9 @@
 # X2 v3 增量上身遥操 —— PC2 真机节点
 
+> **统一上手指南（交接必读）**：
+> [`../../docs/x2/handover/x2_upper_body_teleop_handover_CN.md`](../../docs/x2/handover/x2_upper_body_teleop_handover_CN.md)
+> —— 含 v1~v4 版本对比、v4 真机入口、代码地图与排查表。本文是 v3 节点的部署细节。
+>
 > 目标：把 MuJoCo 里验证过的 **v3 链**（4-DoF 位置 IK + 腕部直接填充 +
 > controller-origin lever）原样搬到真机，先验证「只转手腕不再拖肘/肩」。
 >
