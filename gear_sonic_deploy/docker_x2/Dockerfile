@@ -69,21 +69,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxfixes3 \
     && rm -rf /var/lib/apt/lists/*
 
-# ONNX Runtime 1.16.3 (x86_64 prebuilt tarball). Same version + install path
+# ONNX Runtime 1.16.3 (official Microsoft NuGet package). Same version + install path
 # `install_deps.sh` uses on the real X2 dev box, so the C++ deploy's CMake
 # `find_path(... HINTS ${ONNXRUNTIME_ROOT}/include ...)` lands on the same
 # layout in both worlds. Keeps `-DONNXRUNTIME_ROOT=/opt/onnxruntime` (the
 # default `deploy_x2.sh` passes) hitting the right files.
 ARG ONNXRUNTIME_VERSION=1.16.3
-# aarch64 (Jetson) hosts must use the linux-aarch64 prebuilt; x86_64 keeps
-# the original linux-x64 tarball (same version + install path either way).
-RUN _ort_arch="$(uname -m | sed 's/^arm.*$/x64/;s/^aarch64$/aarch64/;s/^x86_64$/x64/')" && cd /tmp && \
+# NuGet includes the C++ headers and both Linux architectures; the old
+# GitHub release tarball URL returns 404.
+RUN _ort_arch="$(uname -m | sed 's/^aarch64$/arm64/;s/^x86_64$/x64/')" && cd /tmp && \
     wget -q --tries=3 \
-        "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${_ort_arch}-${ONNXRUNTIME_VERSION}.tgz" \
-        -O onnxruntime.tgz && \
-    tar xzf onnxruntime.tgz && \
-    mv "onnxruntime-linux-${_ort_arch}-${ONNXRUNTIME_VERSION}" /opt/onnxruntime && \
-    rm onnxruntime.tgz && \
+        "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ONNXRUNTIME_VERSION}/microsoft.ml.onnxruntime.${ONNXRUNTIME_VERSION}.nupkg" \
+        -O onnxruntime.nupkg && \
+    python3 -m zipfile -e onnxruntime.nupkg ort-package && \
+    mkdir -p /opt/onnxruntime/include /opt/onnxruntime/lib && \
+    cp ort-package/build/native/include/*.h /opt/onnxruntime/include/ && \
+    cp "ort-package/runtimes/linux-${_ort_arch}/native/libonnxruntime.so" \
+        "/opt/onnxruntime/lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}" && \
+    ln -s "libonnxruntime.so.${ONNXRUNTIME_VERSION}" /opt/onnxruntime/lib/libonnxruntime.so && \
+    rm -rf onnxruntime.nupkg ort-package && \
     echo /opt/onnxruntime/lib > /etc/ld.so.conf.d/onnxruntime.conf && \
     ldconfig
 ENV ONNXRUNTIME_ROOT=/opt/onnxruntime

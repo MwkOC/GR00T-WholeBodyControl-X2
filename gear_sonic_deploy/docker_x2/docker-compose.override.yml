@@ -1,0 +1,4 @@
+# This workstation uses Mesa rendering and has no NVIDIA container runtime.
+services:
+  x2sim:
+    runtime: runc

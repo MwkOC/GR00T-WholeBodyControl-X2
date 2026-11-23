@@ -205,7 +205,7 @@ if [[ "${WITH_DOCKER}" -eq 1 ]]; then
     # distributes with their AimDK SDK (no direct-download URL, so this
     # script cannot fetch it). Check EARLY with clear instructions instead
     # of failing 10 minutes into the docker build.
-    AIMDK_SDK_URL="${AIMDK_SDK_URL:-https://x2-aimdk.agibot.com/downloads/aimdk-aarch64-a424add7-artifacts.zip}"
+    AIMDK_SDK_URL="${AIMDK_SDK_URL:-https://x2-aimdk.agibot.com/downloads/aimdk-sdk-v1_0_0-aimdk-aarch64-a424add7-artifacts.zip}"
     AIMDK_DEST="${REPO_ROOT}/gear_sonic_deploy/thirdparty/aimdk_msgs"
     if [[ ! -f "${AIMDK_DEST}/package.xml" ]]; then
         note "aimdk_msgs not present — fetching AgiBot's official AimDK SDK artifact"

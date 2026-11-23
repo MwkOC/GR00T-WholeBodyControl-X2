@@ -1050,9 +1050,6 @@ class X2MujocoRosBridge:
                 js.position = float(self.mj_data.qpos[self.qpos_adr[mj]])
                 js.velocity = float(self.mj_data.qvel[self.qvel_adr[mj]])
                 js.effort = float(self.mj_data.actuator_force[self.act_idx[mj]])
-                js.coil_temp = 0
-                js.motor_temp = 0
-                js.motor_vol = 0
                 msg.joints.append(js)
             pub.publish(msg)
         self._state_pub_count += 1

@@ -436,6 +436,7 @@ A	gear_sonic_deploy/docker_x2/Dockerfile	X2 Ultra MuJoCo-sim container
 A	gear_sonic_deploy/docker_x2/README.md	X2 Docker container (sim + real robot) — Lightweight ROS 2 Humble + ONNX Runtime container for running the X2 Ultra
 A	gear_sonic_deploy/docker_x2/build_deploy_pkg.sh	One-shot in-container build of the deploy package.
 A	gear_sonic_deploy/docker_x2/docker-compose.real.yml	Real-robot DDS overlay for the X2 sim container.
+A	gear_sonic_deploy/docker_x2/docker-compose.override.yml	CPU-only container runtime override for simulation without NVIDIA runtime.
 A	gear_sonic_deploy/docker_x2/docker-compose.yml	X2 Ultra MuJoCo-sim container for GR00T-WholeBodyControl.
 A	gear_sonic_deploy/docker_x2/enter_sim.sh	Build (idempotent) and drop into a shell inside the X2 sim container, with DDS isolated to loopback (ROS_LOCALHOST_ONLY=1, ROS_DOMAIN_ID=73 from docker-compose.yml).
 A	gear_sonic_deploy/docker_x2/get_x2_sonic_ready.sh	One-shot bring-up: build the X2 container in REAL-ROBOT mode AND run the deploy node in --dry-run, with operator-gated safety prompts the whole way.
