@@ -529,3 +529,69 @@ class ArmIKSolver:
             clamped_count=clamped_count,
             iterations=iters,
         )
+
+
+class HandumiArmIK(ArmIKSolver):
+    """HandUMI's incremental weighted DLS, using the X2's analytic FK.
+
+    Matches handumi-sw/src/handumi/teleop/dls.py: one warm-started step,
+    singularity-dependent damping, soft rest posture, orientation hold above
+    2.2 rad, and a 1 rad/s joint cap. The shared X2 chain runs at 50 Hz;
+    ``max_iters`` never multiplies this tick's velocity budget.
+    """
+
+    backend = "handumi"
+
+    def _step(self, q, target_pos, target_quat_wxyz=None, free=7):
+        q = np.asarray(q, dtype=np.float64).copy()
+        target_pos = np.asarray(target_pos, dtype=np.float64)
+        if q.shape != (7,) or target_pos.shape != (3,):
+            raise ValueError("expected q (7,) and target position (3,)")
+        if not np.isfinite(q).all() or not np.isfinite(target_pos).all():
+            raise ValueError("joint positions and target must be finite")
+        geometric, pos, rot = self._jacobian(q)
+        error = target_pos - pos
+        J = geometric[:3, :free]
+        target_rot = None
+        if target_quat_wxyz is not None:
+            quat = np.asarray(target_quat_wxyz, dtype=np.float64)
+            if quat.shape != (4,) or not np.isfinite(quat).all() or np.linalg.norm(quat) < 1e-8:
+                raise ValueError("expected a finite, nonzero wxyz quaternion (4,)")
+            target_rot = _quat_wxyz_to_matrix(quat)
+            angular_error = _rotation_error_axis_angle(rot, target_rot)
+            angle = float(np.linalg.norm(angular_error))
+            # HandUMI differentiates log(R_target R_current^-1). Its task
+            # Jacobian is the geometric Jacobian times the SO(3) right-log
+            # derivative, rather than simply the angular velocity rows.
+            x, y, z = angular_error
+            skew = np.array([[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]])
+            coeff = (1.0 / 12.0 if angle < 1e-5 else
+                     (1.0 - 0.5 * angle / np.tan(0.5 * angle)) / angle**2)
+            log_jac = np.eye(3) + 0.5 * skew + coeff * (skew @ skew)
+            angular_jac = log_jac @ geometric[3:, :free]
+            weight = 0.1 if angle <= 2.2 else 0.0
+            J = np.vstack((J, weight * angular_jac))
+            error = np.concatenate((error, weight * angular_error))
+        sigma_min = float(np.min(np.linalg.svd(J, compute_uv=False)))
+        ramp = max(0.0, 1.0 - sigma_min / 0.05)
+        damping_sq = 0.05**2 + 0.15**2 * ramp**2
+        rest_sq = 0.02**2
+        normal = J.T @ J + (damping_sq + rest_sq) * np.eye(free)
+        rhs = J.T @ error + rest_sq * (self.q_preferred[:free] - q[:free])
+        delta = np.linalg.solve(normal, rhs)
+        candidate = np.clip(q[:free] + delta, self._lo[:free], self._hi[:free])
+        clamped = int(np.count_nonzero(candidate != q[:free] + delta))
+        q[:free] += np.clip(candidate - q[:free], -0.02, 0.02)
+        q[:free] = np.clip(q[:free], self._lo[:free], self._hi[:free])
+        achieved_pos, achieved_rot = self.fk(q)
+        rot_err = (0.0 if target_rot is None else
+                   float(np.linalg.norm(_rotation_error_axis_angle(achieved_rot, target_rot))))
+        return q, IKResult(float(np.linalg.norm(target_pos - achieved_pos)), rot_err, clamped, 1)
+
+    def solve(self, q_seed, target_pos, target_quat_wxyz=None, max_iters=1):
+        return self._step(q_seed, target_pos, target_quat_wxyz)
+
+    def solve_position_free4(self, q_seed, wrist_q3, target_pos, max_iters=1):
+        q = np.asarray(q_seed, dtype=np.float64).copy()
+        q[4:] = wrist_q3
+        return self._step(q, target_pos, free=4)

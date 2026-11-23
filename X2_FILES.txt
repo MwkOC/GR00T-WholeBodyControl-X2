@@ -29,6 +29,7 @@ A	docs/x2/README.md	AgiBot X2 Ultra on GEAR-SONIC — runbook index — This dir
 A	docs/x2/TRAINING_NOTES.md	Public run history: lineages and GPU-hours of the shipped sets, the reward terms that differ from the SONIC paper and the A/B that would settle them, the traps that cost GPU-hours.
 A	docs/x2/gamepad_cheatsheet.md	X2 gamepad cheat sheet (demo pad, untethered) — Bindings come from two places and the sheet reflects their combination
 A	docs/x2/gamepad_control_map.html	X2 pad — control map
+A	docs/x2/VR_TELEOP_COMPARISON.md	Comparison, implementation and validation of trackerless SONIC TELEOP and HandUMI DLS.
 A	docs/x2/handover/README.md	中文交接总览：两条遥操链路的选择、现状快照与交接待办。
 A	docs/x2/handover/sonic_wbc_teleop_handover_CN.md	SONIC 全身遥操真机中文上手指南：L1~L5、模型版本、点火/全身跟随/停机与排查。
 A	docs/x2/handover/x2_upper_body_teleop_handover_CN.md	上肢遥操 v1~v4 中文上手指南：版本对比、v4 操作、v3/v2 回退与排查。
@@ -292,6 +293,7 @@ A	gear_sonic/scripts/play_x2_motion_mujoco.py	Kinematic playback of a motion_lib
 A	gear_sonic/scripts/play_xbox_controller.py	Xbox-controller launcher for the X2 demo motion-clip wire.
 A	gear_sonic/scripts/preflight_deploy_contract.py	Pre-ignition contract check: does the ROBOT's binary agree with the MODEL?
 A	gear_sonic/scripts/preflight_planner.py	Pre-deploy regression suite for pc2_kplanner_onnx — MUST PASS before any PC2 push of planner code or primitive clips.
+A	gear_sonic/scripts/prepare_three_point_vr.py	Export matched native X2 pose, token and trained TELEOP graphs with PyTorch/ONNX parity checks.
 A	gear_sonic/scripts/quest3_manager_x2.py	X2-specific Quest 3 manager — X2 counterpart of the G1 Quest manager.
 A	gear_sonic/scripts/reexport_x2_g1_onnx.py	Re-export the fused X2 G1 deploy ONNX from a PyTorch checkpoint.
 A	gear_sonic/scripts/replay_intent_tape.py	Replay a captured intent tape through the deployed ONNX planner, offline.
@@ -302,6 +304,7 @@ A	gear_sonic/scripts/run_pico_teleop.sh	LAPTOP half of whole-body teleop -- the 
 A	gear_sonic/scripts/run_pico_teleop_v4_real.sh	LAPTOP v4 REAL-ROBOT preset: requires --pc2-host (loopback refused), adds --tracking 3point and, unless the operator overrides it, --hand-source trigger --hand-close-on-grip; --no-hands = arms only; preflights :5573/:5572 and points PICO_PC_SERVICE_DIR at the working local copy; every other argument is passed through to run_pico_teleop.sh.
 A	gear_sonic/scripts/run_pico_teleop_v4_sim.sh	LAPTOP v4 SIM twin of run_pico_teleop_v4_real.sh: starts the MuJoCo v3 harness in the background (:15573) and the 3point sender in the foreground, killing the harness on exit. Bakes in the real-node-alignment flags the operator must not have to remember: --operator-x-sign +1 and --operator-y-sign +1 (the SDK wire is right-handed, so +x is operator-forward and +y is operator-left; a same-facing operator/robot pair is the identity map, 2026-10-30 live-confirmed -- the 2026-10-27 -1/-1 preset was refuted), wrist axis order 0,2,1 with pitch sign -1 on both sides (the PC2 node defaults measured on the robot 2026-10-27), and the 2026-10 ctrl-lever fits. Refuses --tracking / --pc2-host / --hand-source; --no-viewer/--record/--duration/--intent-port/--ctrl-lever-* are owned here, the rest is passed to the sender; V4_SIM_DRY_RUN=1 prints the commands only. The harness defaults stay +1/+1 and 0,1,2/(+1,+1,+1) because the full-body _torso_M wire uses the same code.
 A	gear_sonic/scripts/run_planner_smoke.sh	X2 planner smoke runner (kplanner; the legacy heuristic planner is not shipped).
+A	gear_sonic/scripts/run_three_point_vr.sh	SIM-only one-terminal trackerless neuronal SONIC TELEOP plus planner launcher.
 A	gear_sonic/scripts/run_x2_pico_wbc.sh	X2 whole-body Pico teleop launcher (SMPL path, live_pico_smpl_teleop.py).
 A	gear_sonic/scripts/run_x2_pkl_direct_stack.sh	X2 direct PKL-to-SONIC stack runner.
 A	gear_sonic/scripts/run_x2_quest3_planner_stack.sh	X2 Quest 3 planner-driven teleop / record stack runner (Phase 0).
@@ -313,6 +316,7 @@ A	gear_sonic/scripts/simstack_pad_drive.py	Scripted gamepad on the planner_cmd w
 A	gear_sonic/scripts/simstack_replay_tape.py	Replay a kplanner intent tape into the LIVE local sim stack (gear_sonic/scripts/simstack_local.sh).
 A	gear_sonic/scripts/simstack_turn.sh	Pad emulator for the local sim stack (gear_sonic/scripts/simstack_local.sh).
 A	gear_sonic/scripts/sonic_motion_token_labeler.py	SONIC motion-token labeler for X2 LeRobot datasets (M6 / Stage C1).
+A	gear_sonic/scripts/three_point_vr.py	Trackerless head/controller calibration, TELEOP observations and neural token overlay with stale release.
 A	gear_sonic/scripts/upper_body_teleop_mujoco.py	MuJoCo harness v1 (Plan D): replays the PC2 analytic-retarget upper-body teleop pipeline against the X2 MJCF (synthetic poses or the real sender wire).
 A	gear_sonic/scripts/vr_operator_calibrate.py	VR operator calibration script.
 A	gear_sonic/scripts/window_motion_pkl.py	Window long motion-lib clips into overlapping sub-clips for kplanner training.
@@ -326,8 +330,10 @@ A	gear_sonic/scripts/x2_pose_mux.py	x2_pose_mux.py -- laptop-side N-to-1 pose mu
 A	gear_sonic/tests/data/wrist_maxrange_20260905_002744Z.npz	Test fixture capture (operator headset/controller frames) via git-lfs.
 A	gear_sonic/tests/test_arm_mink_ik.py	Unit tests for the mink arm IK backend: FK frame agreement against x2_arm_fk (2000 samples/side), the position-only branch, 1x max_iters=2 == 2x max_iters=1, the rotation-error saturation being a no-op below its cap, the joint-limit self-check identity, and the VelocityLimit step cap.
 A	gear_sonic/tests/test_arm_teleop_v3.py	Layer tests for the v3 arm teleop: wrist differential mapping (zero-delta noop, per-axis direction/signs, limit clamp incl. asymmetric roll, slew + near-pi guard), 4-DoF IK convergence with frozen wrist + wrist_yaw coupling compensation, freeze/re-anchor, freeze guard, keep-out, SMPL-ignored/waist-fixed, trigger-driven inverted hand + stale-open, the trigger/grip role contract (trigger->hands, grip clutch), the shipped-default contract (4-DoF split, no orientation weight), the opt-in full-pose equal task gains (1.0/1.0), and the 2026-10 upstream-stability features (controller-lever pure-wrist invariance on target AND q[:4], soft radial deadband transfer, mink/DLS null-space posture). v4 2026-10: test_3pt_controller_frame mirrors CHAIN_V3_CHECKS[18]; fixed-frame pytest mirrors (position-only frame with junk quats, lateral sign, frame-free wrist delta, origin-free position delta, stacked-controller ValueError). v4 2026-10-21: test_wrist_default_signs_side_parallel mirrors CHAIN_V3_CHECKS[19] (default wrist signs are side-parallel); test_arm_home_long_press mirrors CHAIN_V3_CHECKS[20] (X/A long-press bounded arm home).
+A	gear_sonic/tests/test_handumi_ik.py	HandUMI DLS residual-Jacobian parity, per-tick limits, convergence and clutch holds.
 A	gear_sonic/tests/test_incremental_upper_teleop.py	Layer tests for the clutch-IK incremental upper teleop: wire round-trip (new controller fields), ground-truth IK convergence, anchor freeze/re-anchor, waist yaw rest/twist + gating, trigger->hand mapping and the trigger/grip role contract, composed-model joint map + head hold.
 A	gear_sonic/tests/test_root_tilt_clamp.py	Lean-guard tests: root clamp invariants (hard cap, bit-exact pass-through, azimuth/heading preserved), torso min-max convergence and continuity, at-floor counting, + the live window() insertion point.
+A	gear_sonic/tests/test_three_point_vr.py	Training-observation parity, trackerless SDK polling, launch routing and neural inference checks.
 A	gear_sonic/tests/test_wrist_map_regression.py	Wrist mapping regression: operator max-range clip -> X2 wrist chain angles.
 A	gear_sonic/trl/callbacks/finetune_rate_schedule_callback.py	Trainer callback that schedules the finetune sampling rate over iterations (used by the pico finetune configs).
 A	gear_sonic/trl/modules/frozen_core_g1_actor.py	FrozenCore T2 actor module: frozen GEAR-SONIC G1 core + Phi codec, batched.
@@ -586,7 +592,7 @@ A	x2_repro_checklist.html	GR00T-X2 reproduction checklist (rendered HTML): red l
 
 M	.gitattributes	Machine learning models and data files
 M	.gitignore	Byte-compiled / optimized / DLL files
-M	README.md	Upstream README with an X2 header (hero clip, links) and an "AgiBot X2 Ultra support" section on top; the NVIDIA text below it is unchanged.
+M	README.md	Concise commands for X2 simulation modes.
 M	download_from_hf.py	Download GEAR-SONIC model checkpoints and training data from Hugging Face Hub.
 M	gear_sonic/camera/composed_camera.py	Composed camera server — orchestrates multiple camera drivers.
 M	gear_sonic/data/robot_model/instantiation/__init__.py	Robot model instantiation helpers (G1, X2 Ultra).

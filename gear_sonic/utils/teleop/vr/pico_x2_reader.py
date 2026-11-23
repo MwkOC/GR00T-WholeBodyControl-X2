@@ -39,7 +39,7 @@ from typing import Any
 
 import numpy as np
 
-from gear_sonic.utils.teleop.pico_3pt import _process_3pt_pose
+from gear_sonic.utils.teleop.pico_3pt import _process_3pt_pose, _process_3pt_from_devices
 
 import os as _os
 
@@ -67,7 +67,10 @@ class PicoX2Reader:
     # input_readers.PicoReader.STALE_TIMEOUT.
     STALE_TIMEOUT_S = 5.0
 
-    def __init__(self, poll_hz: float = 200.0):
+    def __init__(self, poll_hz: float = 200.0, *, tracking: str = "full"):
+        if tracking not in ("full", "3point"):
+            raise ValueError("tracking must be full or 3point")
+        self.tracking = tracking
         if xrt is None:
             raise ImportError(
                 "xrobotoolkit_sdk is not importable. Run "
@@ -119,7 +122,7 @@ class PicoX2Reader:
         self._last_stamp_ns = stamp_ns
 
         body_24x7 = None
-        if xrt.is_body_data_available():
+        if self.tracking == "full" and xrt.is_body_data_available():
             try:
                 body = np.asarray(xrt.get_body_joints_pose(), dtype=np.float64)
                 if body.shape == (24, 7):
@@ -159,6 +162,14 @@ class PicoX2Reader:
             "timestamp_monotonic": time.monotonic(),
             "fps": self._fps_ema,
         }
+        if self.tracking == "3point":
+            poses = [np.asarray(getter(), dtype=np.float64) for getter in (
+                xrt.get_headset_pose, xrt.get_left_controller_pose, xrt.get_right_controller_pose)]
+            if all(p.shape == (7,) and np.isfinite(p).all()
+                   and np.linalg.norm(p[3:]) > 1e-6
+                   and (i == 0 or np.linalg.norm(p[:3]) > 1e-6)
+                   for i, p in enumerate(poses)):
+                sample["vr_3pt_pose"] = _process_3pt_from_devices(*poses)
         return sample
 
     def _run(self) -> None:
@@ -221,6 +232,8 @@ class PicoX2Reader:
 
     def get_3pt_pose(self) -> np.ndarray | None:
         sample = self.get_latest()
+        if self.tracking == "3point":
+            return None if sample is None else sample.get("vr_3pt_pose")
         if sample is None or sample.get("body_poses_np") is None:
             return None
         return _process_3pt_pose(sample["body_poses_np"])

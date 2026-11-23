@@ -293,7 +293,7 @@ pkill -f "pad_locomotion_bridg[e]" 2>/dev/null || true
 # differ from the ritual's bridge invocation.
 # shellcheck disable=SC1091
 . "$REPO/x2_pc2/pad_bindings.env"
-if [[ -e /dev/input/js0 ]]; then
+if [[ "${SIMSTACK_NO_PAD:-0}" != "1" && -e /dev/input/js0 ]]; then
   nohup "$VPY" "$REPO/gear_sonic/scripts/pad_locomotion_bridge.py" \
     --source local --port "$CMD_PORT" \
     ${PAD_LOCK_SPEED:+--lock-speed} --deadman "$PAD_DEADMAN" \
@@ -383,8 +383,10 @@ elif [[ "$WB" == "1" ]]; then
   [[ -f "$TOKENIZER_ONNX" ]] || { echo "      FATAL: tokenizer graph not found: $TOKENIZER_ONNX (set SIMSTACK_TOKENIZER)"; exit 1; }
   # Provenance gate (legacy token path): stamped graphs must share one
   # checkpoint; unstamped pre-native exports only warn.
+  TOKENIZER_SLOT=--tokenizer
+  [[ "${X2_THREE_POINT_VR:-0}" == "1" ]] && TOKENIZER_SLOT=--teleop-tokenizer
   "$VPY" "$REPO/gear_sonic/scripts/onnx_provenance.py" check \
-    --pose "$SONIC" --token "$TOKEN_ONNX" --tokenizer "$TOKENIZER_ONNX" | sed 's/^/      /' || { echo "      FATAL: ONNX provenance check failed (see above)"; exit 1; }
+    --pose "$SONIC" --token "$TOKEN_ONNX" "$TOKENIZER_SLOT" "$TOKENIZER_ONNX" | sed 's/^/      /' || { echo "      FATAL: ONNX provenance check failed (see above)"; exit 1; }
   WB_DEPLOY_ARGS="--deploy-extra-arg --whole-body-teleop \
     --deploy-extra-arg --token-model --deploy-extra-arg $C_TOKEN \
     --deploy-extra-arg --token-zmq-host --deploy-extra-arg 127.0.0.1 \

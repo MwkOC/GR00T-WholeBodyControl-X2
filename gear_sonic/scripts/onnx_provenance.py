@@ -33,6 +33,7 @@ EXPECT = {
     "dual": ("native_dual_head", 2511),
     "token": ("any2any_token_deploy", 1670),
     "tokenizer": (None, 840),
+    "teleop_tokenizer": ("native_teleop_tokenizer", 267),
 }
 
 
@@ -130,12 +131,14 @@ def main() -> int:
     s = sub.add_parser("show"); s.add_argument("files", nargs="+")
     c = sub.add_parser("check")
     c.add_argument("--pose"); c.add_argument("--dual"); c.add_argument("--token"); c.add_argument("--tokenizer")
+    c.add_argument("--teleop-tokenizer")
     a = ap.parse_args()
     if a.cmd == "show":
         for f in a.files:
             print(line(info(f)))
         return 0
-    slots = {"pose": a.pose, "dual": a.dual, "token": a.token, "tokenizer": a.tokenizer}
+    slots = {"pose": a.pose, "dual": a.dual, "token": a.token, "tokenizer": a.tokenizer,
+             "teleop_tokenizer": a.teleop_tokenizer}
     if not any(slots.values()):
         ap.error("check needs at least one of --pose/--dual/--token/--tokenizer")
     return check(slots)

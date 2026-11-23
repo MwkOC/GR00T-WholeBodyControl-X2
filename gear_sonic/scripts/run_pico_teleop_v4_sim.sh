@@ -78,6 +78,8 @@ Options handled here:
   --no-viewer              harness without the MuJoCo viewer (headless)
   --record <file.npz>      harness per-tick telemetry dump
   --duration <s>           harness stop after N s (sender keeps running)
+  --ik                     HandUMI adaptive DLS, full 7-DoF pose solve
+  --dry-run                print commands without starting the headset/sim
   --ctrl-lever-left  X Y Z   override the left  controller->wrist lever
   --ctrl-lever-right X Y Z   override the right controller->wrist lever
   -h, --help               this text
@@ -95,6 +97,11 @@ _need_3_floats() {
 
 while (( $# )); do
     case "$1" in
+        --ik)                   HARNESS_EXTRA+=(--ik); shift ;;
+        --dry-run)              export V4_SIM_DRY_RUN=1; shift ;;
+        --three-point-vr|--whole-body-teleop|--vr|--vr-only)
+            echo "[v4-sim] ERROR: choose one teleop mode; '$1' conflicts with --ik/v4." >&2
+            exit 2 ;;
         --intent-port)          PORT="${2:-}"; shift 2 ;;
         --intent-port=*)        PORT="${1#*=}"; shift ;;
         --no-viewer)            HARNESS_EXTRA+=(--no-viewer); shift ;;

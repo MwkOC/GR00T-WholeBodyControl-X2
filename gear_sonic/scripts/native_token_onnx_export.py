@@ -93,6 +93,7 @@ def _export(module: torch.nn.Module, example: torch.Tensor, path: str,
             input_names=[in_name], output_names=[out_name],
             dynamic_axes={in_name: {0: "batch"}, out_name: {0: "batch"}},
             opset_version=opset,
+            dynamo=False,  # explicit legacy exporter; dynamic_axes/opset 17 contract
             do_constant_folding=False,   # keep FSQ rounding live, as reexport does
             verbose=False)
     m = onnx.load(path)

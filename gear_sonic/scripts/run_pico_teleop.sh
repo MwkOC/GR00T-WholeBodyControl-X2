@@ -29,8 +29,10 @@ HAVE_HOST=0
 CAM="${CAM:-off}"
 HEADSET_IP="${HEADSET_IP:-}"
 PASS=()
+THREE_POINT=0
 while (( $# )); do
     case "$1" in
+        --three-point-vr) THREE_POINT=1; shift ;;
         --model)       echo "[pico-teleop] note: --model is obsolete (encoding runs on PC2)"; shift 2 ;;
         --cam)         if [[ -n "${2:-}" && "$2" != --* ]]; then CAM="$2"; shift 2; else CAM=orbbec; shift; fi ;;   # --cam alone = orbbec
         --cam-preview) CAM_PREVIEW=1; shift ;;
@@ -40,6 +42,10 @@ while (( $# )); do
         *)             PASS+=("$1"); shift ;;
     esac
 done
+if (( THREE_POINT )); then
+    (( ! HAVE_HOST && ! TAPE_MODE )) || { echo "--three-point-vr is local SIM/live only; drop --pc2-host/--tape-replay." >&2; exit 2; }
+    HAVE_HOST=1  # skip the SMPL :5573 gate; TELEOP publishes tokens on :5574
+fi
 # TARGET RULE (operator 2026-09-05): no --pc2-host = the LOCAL SIM STACK, always.
 # An IP = the real robot, always. There is NO robot default and NO detection —
 # "someone expected they are testing sim and instead end up sending commands
@@ -65,7 +71,7 @@ if (( ! HAVE_HOST )); then
         fi
     fi
     PASS+=(--pc2-host 127.0.0.1 --clip-port 5668)   # sim stack: kplanner motion_clip_cmd on 5668 (PC2 ritual: 5568)
-else
+elif (( ! THREE_POINT )); then
     echo "[pico-teleop] --pc2-host given -> REAL ROBOT target"
 fi
 # ONE SENDER PER TARGET (2026-09-05 20:05Z robot replay): a live teleop sender
@@ -192,6 +198,16 @@ if [[ "$CAM" != "off" ]]; then
     trap 'stop_video' EXIT
 fi
 
+if (( THREE_POINT )); then
+    THREE_POINT_ARGS=("$REPO_ROOT/gear_sonic/scripts/three_point_vr.py"
+        --tokenizer "${THREE_POINT_MODELS:-${SONIC_HOME:-$HOME/.cache/sonic}/x2/three_point_vr}/teleop.onnx"
+        --input-source pico)
+    if [[ -n "$VIDEO_PID" ]]; then
+        "$PY" "${THREE_POINT_ARGS[@]}" "$@"
+        exit $?
+    fi
+    exec "$PY" "${THREE_POINT_ARGS[@]}" "$@"
+fi
 echo "[pico-teleop] intent sender starting (streams to the PC2 token service)"
 if [[ -n "$VIDEO_PID" ]]; then
     "$PY" "${REPO_ROOT}/gear_sonic/scripts/pico_intent_sender.py" "$@"

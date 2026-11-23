@@ -275,15 +275,15 @@ def _process_3pt_from_devices(head_pose, left_ctrl_pose, right_ctrl_pose):
     """Controller-pose fallback: 3-point VR pose without body tracking.
 
     Mirrors the Quest 3 reduction (``compute_3pt_pose_from_quest3``): the
-    root is the floor projection of the HEADSET with yaw-only orientation,
+    root is the floor projection of the HEADSET with identity orientation,
     and the controllers stand in for the wrists — instead of the Pico body
     path's pelvis root / SMPL wrist joints. Operator calibration absorbs
     the controller-grip-vs-wrist offset, exactly as on Quest 3.
 
     Args:
         head_pose / left_ctrl_pose / right_ctrl_pose: (7,) arrays
-            ``[x, y, z, qx, qy, qz, qw]`` in the XRoboToolkit (Unity,
-            Y-up left-handed) world frame, as returned by
+            ``[x, y, z, qx, qy, qz, qw]`` in the XRoboToolkit PC Service's
+            right-handed X-right/Y-up/Z-back world frame, as returned by
             ``xrt.get_headset_pose`` / ``get_*_controller_pose``.
 
     Returns:
@@ -291,25 +291,19 @@ def _process_3pt_from_devices(head_pose, left_ctrl_pose, right_ctrl_pose):
         RELATIVE TO ROOT, ``[xyz, quat_wxyz]`` scalar-first — the same
         contract as :func:`_process_3pt_pose`.
     """
-    world = [0, 0, 0, 0, 0, 0, 1]
+    # Device tracking uses the same basis as WebXR. The SMPL helper's
+    # separate skeleton basis is not the raw controller basis.
+    basis = np.array([[0., 0., -1.], [-1., 0., 0.], [0., 1., 0.]])
     robot = np.zeros((3, 7), dtype=np.float64)
     for i, pose in enumerate((left_ctrl_pose, right_ctrl_pose, head_pose)):
-        pos, orn_wxyz = _compute_rel_transform(
-            np.asarray(pose, dtype=np.float64), world, scalar_first=False
-        )
-        robot[i, :3] = pos
-        robot[i, 3:] = orn_wxyz  # [qw, qx, qy, qz]
+        pose = np.asarray(pose, dtype=np.float64)
+        robot[i, :3] = basis @ pose[:3]
+        rot = basis @ sRot.from_quat(pose[3:]).as_matrix() @ basis.T
+        robot[i, 3:] = sRot.from_matrix(rot).as_quat()[[3, 0, 1, 2]]
 
-    # Root: floor projection of the head, yaw-only orientation.
+    # Root: floor projection only. Removing the headset's instantaneous yaw
+    # would erase head rotation and rotate the hand targets when looking.
     head_pos = robot[2, :3]
     root_pos = np.array([head_pos[0], head_pos[1], 0.0])
-    head_quat_xyzw = np.concatenate([robot[2, 4:], robot[2, 3:4]])
-    root_rot = sRot.from_quat(_yaw_only_quat_xyzw(head_quat_xyzw))
-
-    out = np.zeros((3, 7), dtype=np.float32)
-    for i in range(3):
-        out[i, :3] = root_rot.inv().apply(robot[i, :3] - root_pos)
-        row_rot = sRot.from_quat(
-            np.concatenate([robot[i, 4:], robot[i, 3:4]]))  # wxyz -> xyzw
-        out[i, 3:] = (root_rot.inv() * row_rot).as_quat(scalar_first=True)
-    return out
+    robot[:, :3] -= root_pos
+    return robot.astype(np.float32)

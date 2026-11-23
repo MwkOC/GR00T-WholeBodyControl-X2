@@ -168,6 +168,7 @@ def main() -> int:
         "--wire", action="store_true", help="consume the laptop sender over ZMQ (else nothing runs)"
     )
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--ik", action="store_true", help="HandUMI adaptive DLS with full-pose IK")
     ap.add_argument("--intent-port", type=int, default=15573)
     ap.add_argument("--stale-s", type=float, default=0.5)
     ap.add_argument("--position-scale", type=float, default=1.0)
@@ -342,6 +343,9 @@ def main() -> int:
         "autopsy; empty = off (column layout in the header comment below)",
     )
     args = ap.parse_args()
+    if args.ik:
+        os.environ["X2_IK_BACKEND"] = "handumi"
+        args.full_pose_ik = True
 
     if args.self_test:
         return 0 if run_self_test() else 1

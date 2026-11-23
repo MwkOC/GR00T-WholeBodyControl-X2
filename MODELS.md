@@ -1,5 +1,43 @@
 # MODELS.md — the shipped default set, and bring-your-own models for the X2 stack
 
+## Trackerless neuronal TELEOP (`--three-point-vr`, simulation only)
+
+`sim_onnx_planner.sh --three-point-vr` uses SONIC's trained TELEOP encoder,
+not the SMPL encoder or the v4 arm IK. Head and two controllers supply the
+upper-body targets; the kplanner supplies the lower-body reference. PICO
+does not require body trackers; `--input-source quest3` uses WebXR instead.
+The four-button chord calibrates against measured X2 FK and engages or
+releases; left-stick click switches TELEOP/planner. Hold the left trigger
+for stick locomotion. Tracking, planner or state loss releases the token
+overlay and requires manual re-engagement. Ctrl-C stops the local stack.
+
+The shipped 45000 dual-head graphs expose pose and SMPL, **not TELEOP**.
+On first launch, `prepare_three_point_vr.py` downloads the public native
+`tinkerbuggy/sonic-x2/sonic_torch/model_step_014000.pt` at revision
+`f576dd02ba447385c2455079a1c88f9d4b050e0d` and exports `pose.onnx`,
+`token.onnx`, and `teleop.onnx` together into
+`${SONIC_HOME:-~/.cache/sonic}/x2/three_point_vr` (override:
+`THREE_POINT_MODELS`). This is a **different checkpoint from the default
+45000**, not a new head bolted onto its decoder. Exports are checked against
+PyTorch and carry the same checkpoint fingerprint. Preparing models alone:
+`sim_onnx_planner.sh --three-point-vr --prepare-models`.
+
+For a newer native checkpoint with a trained TELEOP encoder, pass
+`--prepare-models --checkpoint /path/to/native.pt` to export all three
+graphs as a set. The public 14000 checkpoint predates the vendor-plant and
+PICO finetunes of 45000; inference/observation parity does not establish
+equal tracking or sim2real performance. This route deliberately refuses a
+robot address and leaves existing robot launchers unchanged.
+
+`sim_onnx_planner.sh --ik` instead uses HandUMI's incremental weighted DLS
+with X2 analytic FK: one full-pose step per 50 Hz tick, adaptive damping,
+orientation weight 0.1, rest strength 0.02 and 1 rad/s joint limit. It keeps
+the v4 clutch, filtering, reach/torso guards and stale holds. This is a
+fixed-base/gantry arm simulation, not neuronal whole-body balancing. Its
+simulator uses the external HAL tables when installed; otherwise it uses
+the repository's captured `x2_stand_default_pose.yaml` PD gains and reports
+that choice. Neither new mode has been validated on a physical X2.
+
 ## Shipped default set (v16ft8_45000)
 
 One native 3-encoder SONIC set ships in this repository under

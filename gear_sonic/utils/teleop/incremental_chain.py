@@ -94,7 +94,7 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 # Arm IK backend selection
 # ---------------------------------------------------------------------------
-_ARM_SOLVER_BACKENDS = ("mink", "dls")
+_ARM_SOLVER_BACKENDS = ("mink", "dls", "handumi")
 
 # ArmIKSolver arguments with no counterpart on MinkArmIK. Dropped rather than
 # forwarded, so one ClutchArm call site can serve both backends; anything else
@@ -168,6 +168,12 @@ def make_arm_solver(side: str, backend: str | None = None, **kwargs):
         kwargs = {k: v for k, v in kwargs.items() if k not in _LEGACY_ONLY_SOLVER_KWARGS}
         return MinkArmIK(side, **kwargs), resolved
     kwargs = {k: v for k, v in kwargs.items() if k not in _MINK_ONLY_SOLVER_KWARGS}
+    if resolved == "handumi":
+        try:
+            from gear_sonic.utils.teleop.solver.arm.x2_arm_ik import HandumiArmIK
+        except ImportError:  # flat PC2 bundle
+            from x2_arm_ik import HandumiArmIK
+        return HandumiArmIK(side, **kwargs), resolved
     return ArmIKSolver(side, **kwargs), resolved
 
 

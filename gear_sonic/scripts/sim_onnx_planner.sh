@@ -105,12 +105,14 @@ PC2_IP=""
 VR_MODE=0
 FULL_BODY=0
 DRY_RUN=0
+TELEOP_MODE=""
 FB_EXTRA=()
 ORIG_ARGS=("$@")
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help)        sed -n '2,73p' "$0"; echo; echo "  --dry-run   resolve models/dances/pad banks, print them, exit (no gate, no launch)"; exit 0 ;;
+    -h|--help)        sed -n '2,73p' "$0"; echo; echo "  --three-point-vr   neuronal SONIC TELEOP: head + two controllers, planner locomotion (SIM)"; echo "  --ik               HandUMI adaptive DLS: incremental arm teleop (SIM)"; echo "  --dry-run   resolve models/dances/pad banks, print them, exit (no gate, no launch)"; exit 0 ;;
     --dry-run)        DRY_RUN=1; shift ;;
+    --three-point-vr|--ik) TELEOP_MODE="$1"; shift; FB_EXTRA=("$@"); set -- ;;
     --pc2-host|--pc2) PC2_IP="${2:-}"; shift 2 ;;
     --vr)             VR_MODE=1; shift ;;
     --vr-only)        VR_MODE=2; shift ;;   # Quest 3 only, NO pad bridge (no gamepad needed)
@@ -121,6 +123,15 @@ while [[ $# -gt 0 ]]; do
     *)                PC2_IP="$1"; shift ;;
   esac
 done
+
+if [[ -n "$TELEOP_MODE" ]]; then
+  [[ -z "$PC2_IP" && "$VR_MODE" == 0 ]] || { echo "ERROR: $TELEOP_MODE is a separate local SIM mode; drop --pc2-host/--vr." >&2; exit 2; }
+  (( DRY_RUN )) && FB_EXTRA=(--dry-run "${FB_EXTRA[@]}")
+  if [[ "$TELEOP_MODE" == "--ik" ]]; then
+    exec ./gear_sonic/scripts/run_pico_teleop_v4_sim.sh --ik "${FB_EXTRA[@]}"
+  fi
+  exec ./gear_sonic/scripts/run_three_point_vr.sh "${FB_EXTRA[@]}"
+fi
 
 # --whole-body-teleop: hand off to the WHOLE-BODY Pico SMPL teleop (run_x2_pico_wbc.sh)
 # so the familiar stack command shape launches it. That stack is STANDALONE and
